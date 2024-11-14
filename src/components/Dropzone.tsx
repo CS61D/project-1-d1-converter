@@ -6,7 +6,6 @@ export const Dropzone = ({ files, setFiles }: { files: FileItem[], setFiles: (fi
     const { getRootProps, getInputProps } = useDropzone({
         accept: ImageMimeTypes,
         onDrop: (newFiles: File[]) => {
-            console.log("Files dropped:", newFiles);
             const fileItems = newFiles.map((file) => ({
                 file,
                 format: file.type,
@@ -18,13 +17,13 @@ export const Dropzone = ({ files, setFiles }: { files: FileItem[], setFiles: (fi
     });
 
     return (
-        <div className="h-64 w-64 rounded-lg border-2 border-gray-300 border-dashed p-2">
-            <div {...getRootProps()}>
+        <div className="h-64 w-64 rounded-lg border-2 border-gray-300 border-dashed p-2 flex justify-center items-center">
+            <div {...getRootProps()} className="text-center">
                 <input {...getInputProps()} />
-                <div className="text-center text-gray-500">
+                <div className="text-center text-gray-500 text-xl" >
                     Drag & drop an images here, or click to select files
                     <br/>
-                    Supported input formats: png, jpeg, bmp, ico, tiff, gif
+                    Supported input formats: png, jpeg, webp
                 </div>
             </div>
         </div>

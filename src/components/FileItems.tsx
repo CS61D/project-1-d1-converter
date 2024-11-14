@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { convertFile, formatFileSize, loadFfmpeg, downloadFile} from "@/lib/utils";
 import type { FileItem } from "@/types/FileItem";
-import { useState } from "react";
+import {useEffect, useState, useRef} from "react";
 import { CircleXIcon } from "lucide-react";
 export type FormValues = {
     fileName: string;
@@ -21,7 +21,7 @@ function sizeDiff(before: number, after: number) {
     );
 }
 function outputFileNameFormat(newName: string, format: string) {
-    const types = ["jpeg", "png", "webp", "jpg"]
+    const types = ["jpeg", "png", "webp"]
     if (newName.includes('.')) {
         if (types.some(type => newName.includes(type))){
             return `${newName.split('.').slice(0, -1).join('.')}.${format}`
@@ -34,18 +34,18 @@ function outputFileNameFormat(newName: string, format: string) {
     }
 }
 function display_button(file: FileItem, converted: boolean,  format: string,
-                        newName: string, setConverted: (converted: boolean) => void) {
+                        newName: string, setConverted: (converted: boolean) => void, ffmpeg: any) {
     if (!converted) {
         return (
             <div>
-                <Button type="button" onClick={async () => {
-                    
+                <Button type="button" onClick={ async () => {
+
+                    console.log(format);
                     let outputFileName = outputFileNameFormat(newName, format);
+                    console.log(outputFileName);
 
-                    const ffmpeg = await loadFfmpeg();
-
-
-                    const result = await convertFile(ffmpeg, file.file, outputFileName);
+                    const result = await convertFile(ffmpeg, file.file, `${newName}.${format}`);
+                    console.log('worked')
                     setConverted(!converted);
                     file.sizeAfter = result.outputFileSize;
                     file.name = outputFileName;
@@ -64,13 +64,35 @@ function display_button(file: FileItem, converted: boolean,  format: string,
     );
 }
 
-export const FileItems = ({ file, files, setFiles, index, formatAll }:
-                              { file: FileItem, files: FileItem[], setFiles: (files: FileItem[]) => void,
-                                  index: number , formatAll: string, }) => {
+export const FileItems = ({ file, index, formatAll, deleteFile, formatChanged, setFormatChanged}:
+                              { file: FileItem, index: number , formatAll: string, formatChanged: boolean,
+                                  setFormatChanged: (formatChanged: boolean) => void,
+                                    deleteFile: (index: number) => void
+                              }) => {
     const [format, setFormat] = useState<string>(file.format);
     const [newName, setNewName] = useState<string>(file.name);
     const methods = useForm<FormValues>();
     const [converted, setConverted] = useState<boolean>(false);
+
+    // This ref will be passed into the convertFile function
+    const ffmpegRef = useRef<any | null>(null);
+
+    useEffect(() => {
+        load();
+    }, []);
+
+    const load = async () => {
+        // the loadFfmpeg function is defined in lib/utils.ts
+        const ffmpeg_response: any = await loadFfmpeg();
+        ffmpegRef.current = ffmpeg_response;
+    };
+
+
+    useEffect(() => {
+        if (!formatChanged) {
+            setFormat(formatAll);
+        }
+    }, [formatAll, formatChanged]);
 
     return (
         <div>
@@ -92,7 +114,7 @@ export const FileItems = ({ file, files, setFiles, index, formatAll }:
                                 <br />
                                 <FormControl>
                                     <input {...field}
-                                    value={newName} 
+                                    value={newName}
                                     className="rounded-md border-2 p-1 shadow-xl" 
                                     onChange={(e) => { setNewName(e.target.value); field.onChange(e); }}/>
                                 </FormControl>
@@ -103,12 +125,15 @@ export const FileItems = ({ file, files, setFiles, index, formatAll }:
                                 <FormLabel>Format</FormLabel>
                                 <br />
                                 <FormControl>
-                                    <select {...field} 
-                                    className="rounded-md border-2 p-1 shadow-xl"
-                                    value={format}
-                                    onChange={(e) => { setFormat(e.target.value); field.onChange(e); 
-                                        console.log(e.target.value)
-                                    }}>
+                                    <select {...field}
+                                            className="rounded-md border-2 p-1 shadow-xl"
+                                        value={!formatChanged ? formatAll : format}
+                                        onChange={(e) => {
+                                            setFormatChanged(true);
+                                            setFormat(e.target.value);
+                                            field.onChange(e);
+                                        }}
+                                    >
                                         <option value="png">png</option>
                                         <option value="jpeg">jpeg</option>
                                         <option value="webp">webp</option>
@@ -116,15 +141,9 @@ export const FileItems = ({ file, files, setFiles, index, formatAll }:
                                 </FormControl>
                             </FormItem>
                         )} />
-                        {display_button(file, converted, format, newName, setConverted)}
-                        <Button className="bg-transparent hover:bg-transparent"
-                        onClick={ () => {
-                            //TODO: Fix filter removes file safely while mapping
-                            setFiles(files.filter((_, i) => i !== index));
-                            setConverted(false);
-                        }}>
-
-                        <CircleXIcon className="rounded-full bg-white text-black" />                        
+                        {display_button(file, converted, format, newName, setConverted, ffmpegRef.current)}
+                        <Button className="bg-transparent hover:bg-transparent" onClick={() => deleteFile(index)}>
+                            <CircleXIcon className="rounded-full bg-white text-black" />
                         </Button>
                     </div>
                 </form>
